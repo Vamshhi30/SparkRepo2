@@ -23,7 +23,7 @@ object SparkStructuredStreaming1 {
 							StructField("Streamdata",StringType,true)
 							))
 					val Df = spark.readStream.schema(weblogschema).option("sep","~").csv("file:///C:/Data/NifiRandomUserUrl")
-					.writeStream.outputMode("append").format("console").option("checkpointLocation","file:///C:/checkpointDir")
-					.option("truncate","false").start().awaitTermination()
+					.writeStream.outputMode("append").format("parquet").option("checkpointLocation","file:///C:/checkpointDir")
+					.option("truncate","false").start("file:///C:/Data/NifiRandomUserUrl/Spark_parquetWrite").awaitTermination()
 	}
 }
