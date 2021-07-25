@@ -18,8 +18,9 @@ object Spark_Project2
 				val sc = spark.sparkContext
 				sc.setLogLevel("Error")
 				import spark.implicits._
+				// retrieving table data from Mysql - Schema_DB Database
 				val schema_df = spark.read.format("jdbc")
-				                     .option("url","jdbc:mysql://192.168.56.101:3306/Schema_DB")
+				                     .option("url","jdbc:mysql://localhost/Schema_DB")
 										         .option("driver","com.mysql.jdbc.Driver")
 										         .option("dbtable","Schema_tab")
 										         .option("user","root")
@@ -27,14 +28,16 @@ object Spark_Project2
 				
 				//val schema_df = spark.read.format("csv").option("header","true").load("file:///C:/Data/Spark_project3_source/schema.txt")
 				schema_df.show() 
-
+				
+				//converting schema_df to list of rows
 				val schema_list = schema_df.select("*").collect().toList
 				//print(schema_list)
-
+				
+				//HBase Catalog String Creation
 				val str1 = 
 				s""" 
 				|{
-				|"table" : { "namespace" : "default", "name" : "hbase_tract12" },
+				|"table" : { "namespace" : "default", "name" : "hbase_tract10" },
 				|"rowkey" : "rowkey",
 				|"columns" :
 				|{
@@ -54,20 +57,23 @@ object Spark_Project2
 					val catalog = str1+str2.toString.replaceAll(",$", "")+str3
 					//println(catalog)
 					
+					//Spark HBase Integration
 					val hbase_track_df = spark.read.options(Map(HBaseTableCatalog.tableCatalog->catalog)).format("org.apache.spark.sql.execution.datasources.hbase").load()
-
+					
+					//Getting Distinct prefixes
 					val hive_table_names = schema_list.map(x=>x.getString(1)).map(x=>x.split("_")(0)).distinct
 					print(hive_table_names)
 				  
-				  val stmt1 = spark.sql("DROP DATABASE IF EXISTS hive_tract12_db CASCADE")
-				  val stmt2 = spark.sql("CREATE DATABASE hive_tract12_db LOCATION '/user/hive/warehouse'")
+				  val stmt1 = spark.sql("DROP DATABASE IF EXISTS hive_tract10_db CASCADE")
+				  val stmt2 = spark.sql("CREATE DATABASE hive_tract10_db LOCATION '/user/hive/warehouse'")
 				  
+				  //Iterating over each prefix column names and creating tables in Hive database. 
 				  for(table_name <- hive_table_names) 
 				  {
 				    val col_arr = hbase_track_df.columns.filter(_.startsWith(s"$table_name"))
 				    val col_arr1 = Array("master_id") ++ col_arr 
             val res_df = hbase_track_df.select(col_arr1.map(col):_*)	   
-				    res_df.write.format("hive").mode("append").saveAsTable("hive_tract12_db."+table_name.concat("_tab"))    
+				    res_df.write.format("hive").mode("append").saveAsTable("hive_tract10_db."+table_name.concat("_tab"))    
 				  }
 		} 
 }
